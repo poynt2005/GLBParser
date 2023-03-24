@@ -48,3 +48,5 @@ console.log("*************");
 
 parser.ReConstructBuffer();
 parser.WriteGLBFile("./out.glb");
+
+parser.ReleaseSDK();

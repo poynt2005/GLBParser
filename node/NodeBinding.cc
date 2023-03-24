@@ -354,6 +354,22 @@ Napi::Value Node_GetImageMemoryInfo(const Napi::CallbackInfo &info)
     return jsArr;
 }
 
+Napi::Value Node_ReleaseSDK(const Napi::CallbackInfo &info)
+{
+    auto env = info.Env();
+
+    if (info.Length() < 1)
+    {
+        Napi::TypeError::New(env, "Wrong argument, excepted one string").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    auto objUUID = info[0].As<Napi::String>().Utf8Value();
+    sdkObjMapping.erase(objUUID);
+
+    return env.Null();
+}
+
 Napi::Value Node_WriteGLBFile(const Napi::CallbackInfo &info)
 {
     auto env = info.Env();
@@ -417,7 +433,9 @@ Napi::Object Initialize(Napi::Env env, Napi::Object exports)
     exports.Set(
         Napi::String::New(env, "GetImageMemoryInfo"),
         Napi::Function::New(env, Node_GetImageMemoryInfo));
-
+    exports.Set(
+        Napi::String::New(env, "ReleaseSDK"),
+        Napi::Function::New(env, Node_ReleaseSDK));
     exports.Set(
         Napi::String::New(env, "WriteGLBFile"),
         Napi::Function::New(env, Node_WriteGLBFile));

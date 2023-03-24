@@ -78,6 +78,13 @@ function GLBParser(sourceGLBPath) {
    * @private
    */
   this.isImageOriginalMemCalculated = false;
+
+  /**
+   * isSDKRelease means that SDK instance is released and deleted
+   * @type {boolean}
+   * @private
+   */
+  this.isSDKRelease = false;
 }
 
 /**
@@ -88,6 +95,10 @@ function GLBParser(sourceGLBPath) {
 GLBParser.prototype.CalculateDulpicatedImage = function () {
   if (this.isImageDuplicateCalculated) {
     throw new Error("CalculateDulpicatedImage cannot be called twice");
+  }
+
+  if (this.isSDKRelease) {
+    throw new Error("SDK has been released");
   }
 
   nativeBinding.CalculateDulpicatedImage(this.uuid);
@@ -109,6 +120,10 @@ GLBParser.prototype.CompressImage = function (ratio) {
     throw new Error("CompressImage cannot be called twice");
   }
 
+  if (this.isSDKRelease) {
+    throw new Error("SDK has been released");
+  }
+
   nativeBinding.CompressImage(this.uuid, ratio);
   this.isImageDownscaleCalculated = true;
   var info = nativeBinding.GetDownscaledInfo(this.uuid);
@@ -128,6 +143,10 @@ GLBParser.prototype.CompressImageByUpperBound = function (upperbound) {
     throw new Error("CompressImage cannot be called twice");
   }
 
+  if (this.isSDKRelease) {
+    throw new Error("SDK has been released");
+  }
+
   nativeBinding.CompressImageByUpperBound(this.uuid, upperbound);
   this.isImageDownscaleCalculated = true;
   var info = nativeBinding.GetDownscaledInfo(this.uuid);
@@ -145,6 +164,10 @@ GLBParser.prototype.CompressImageByUpperBound = function (upperbound) {
 GLBParser.prototype.CalculateImageUsage = function (ratio) {
   if (!this.isImageDuplicateCalculated) {
     throw new Error("CalculateDulpicatedImage must be called before");
+  }
+
+  if (this.isSDKRelease) {
+    throw new Error("SDK has been released");
   }
   var info = [];
 
@@ -181,6 +204,10 @@ GLBParser.prototype.ReConstructBuffer = function () {
     throw new Error("CalculateDulpicatedImage must be called before");
   }
 
+  if (this.isSDKRelease) {
+    throw new Error("SDK has been released");
+  }
+
   nativeBinding.ReConstructBuffer(this.uuid);
 
   this.isBufferReConstructed = true;
@@ -197,8 +224,25 @@ GLBParser.prototype.WriteGLBFile = function (outGLB) {
     throw new Error("ReConstructBuffer must be called before");
   }
 
+  if (this.isSDKRelease) {
+    throw new Error("SDK has been released");
+  }
+
   nativeBinding.CalculateJsonChunk(this.uuid);
   nativeBinding.WriteGLBFile(this.uuid, outGLB);
+};
+
+/**
+ * Release the GLBParser SDK to free the memory
+ * @memberof GLBParser
+ */
+GLBParser.prototype.ReleaseSDK = function () {
+  if (this.isSDKRelease) {
+    throw new Error("SDK has been released");
+  }
+
+  nativeBinding.ReleaseSDK(this.uuid);
+  this.isSDKRelease = true;
 };
 
 /**
