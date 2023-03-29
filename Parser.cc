@@ -59,6 +59,8 @@ void Parser::CalculateDulpicatedImage(const Microsoft::glTF::Document &document,
                 std::move(data),
                 std::move(image.mimeType)};
 
+            imageMapping.insert(std::pair<int, int>(i, i));
+
             outImageChunk.emplace_back(std::move(imgInfo));
 
             outImageBufferSize += (padding + imgBufferSize);
@@ -67,6 +69,7 @@ void Parser::CalculateDulpicatedImage(const Microsoft::glTF::Document &document,
         {
             const int mapTargetIdx = hashStringMapping[sha512String];
 
+            /********* with padding begin*********/
             OutImageInfo imgInfo{
                 0,
                 4,
@@ -76,8 +79,10 @@ void Parser::CalculateDulpicatedImage(const Microsoft::glTF::Document &document,
 
             outImageChunk.emplace_back(std::move(imgInfo));
 
+            // outImageBufferSize += (4);
+            /*********** with padding end************/
+
             imageMapping.insert(std::pair<int, int>(i, mapTargetIdx));
-            outImageBufferSize += (4);
 
             DuplicatedImageInfo dInfo{
                 currentImageBufferIndex,
@@ -120,11 +125,13 @@ void Parser::ReadNonImageBuffer(const Microsoft::glTF::Document &document, const
         if (i < originalImageStartBufferViewIndex)
         {
             auto buf = resourceReader.ReadBinaryData<uint8_t>(document, std::move(document.bufferViews[i]));
+            auto bufSize = buf.size();
             prevBuffer[i] = std::move(buf);
         }
         else if (i > originalImageEndBufferViewIndex)
         {
             auto buf = resourceReader.ReadBinaryData<uint8_t>(document, std::move(document.bufferViews[i]));
+            auto bufSize = buf.size();
             postBuffer[i - originalImageEndBufferViewIndex - 1] = std::move(buf);
         }
     }
@@ -134,32 +141,52 @@ void Parser::ReConstructBuffer()
 {
     outputBufferSize = prevBufferSize + postBufferSize + outImageBufferSize;
     outBuffer = std::make_unique<uint8_t[]>(outputBufferSize);
-    int currentOffset = 0;
+    size_t currentOffset = 0;
+
+    int currentBufferViewIndex = 0;
+    int originalBufferViexIndex = 0;
+
     for (const auto &prevBuf : prevBuffer)
     {
-
-        bufferMapping.push_back(std::pair<int, int>(currentOffset, prevBuf.size()));
+        BufferIndexInfo bufIdxInfo{
+            currentBufferViewIndex,
+            currentOffset,
+            prevBuf.size()};
+        bufferIndexMapping.insert(std::pair<int, BufferIndexInfo>(originalBufferViexIndex, std::move(bufIdxInfo)));
         memcpy(&(outBuffer.get()[currentOffset]), prevBuf.data(), prevBuf.size());
+
         currentOffset += prevBuf.size();
+
+        currentBufferViewIndex++;
+        originalBufferViexIndex++;
     }
 
     for (const auto &chunk : outImageChunk)
     {
 
-        if (chunk.size > 0)
+        if (chunk.size == 0)
         {
-            bufferMapping.emplace_back(std::pair<int, int>(currentOffset, chunk.size));
-            memcpy(
-                &(outBuffer.get()[currentOffset]),
-                chunk.data.data(),
-                chunk.size);
+            BufferIndexInfo bufIdxInfo{
+                0,
+                0,
+                0};
+            bufferIndexMapping.insert(std::pair<int, BufferIndexInfo>(originalBufferViexIndex, std::move(bufIdxInfo)));
+            originalBufferViexIndex++;
+            continue;
+        }
 
-            currentOffset += chunk.size;
-        }
-        else
-        {
-            bufferMapping.emplace_back(std::pair<int, int>(currentOffset, 4));
-        }
+        BufferIndexInfo bufIdxInfo{
+            currentBufferViewIndex,
+            currentOffset,
+            chunk.size};
+        bufferIndexMapping.insert(std::pair<int, BufferIndexInfo>(originalBufferViexIndex, std::move(bufIdxInfo)));
+
+        memcpy(
+            &(outBuffer.get()[currentOffset]),
+            chunk.data.data(),
+            chunk.size);
+
+        currentOffset += chunk.size;
 
         if (chunk.padding > 0)
         {
@@ -171,13 +198,23 @@ void Parser::ReConstructBuffer()
 
             currentOffset += chunk.padding;
         }
+
+        currentBufferViewIndex++;
+        originalBufferViexIndex++;
     }
 
     for (const auto &postBuf : postBuffer)
     {
-        bufferMapping.emplace_back(std::pair<int, int>(currentOffset, postBuf.size()));
+        BufferIndexInfo bufIdxInfo{
+            currentBufferViewIndex,
+            currentOffset,
+            postBuf.size()};
+        bufferIndexMapping.insert(std::pair<int, BufferIndexInfo>(originalBufferViexIndex, std::move(bufIdxInfo)));
         memcpy(&(outBuffer.get()[currentOffset]), postBuf.data(), postBuf.size());
         currentOffset += postBuf.size();
+
+        currentBufferViewIndex++;
+        originalBufferViexIndex++;
     }
 }
 
@@ -191,14 +228,7 @@ int Parser::CalculatePadding(const size_t byteLength)
 
 void Parser::CalculateJsonChunk(const std::string &jsonStr)
 {
-
-    std::vector<std::string> imgMimeTypes;
-    for (auto &entry : outImageChunk)
-    {
-        imgMimeTypes.emplace_back(std::move(entry.mimeType));
-    }
-
-    CalculateJson(jsonStr, outputBufferSize, bufferMapping, imageMapping, imgMimeTypes, outJson);
+    CalculateJson(jsonStr, outputBufferSize, bufferIndexMapping, imageMapping, outJson);
 }
 
 void Parser::CalculateImageMemorySize()
@@ -384,6 +414,11 @@ void Parser::GetDownscaledInfo(std::vector<DownscaleInfo> &infos)
 void Parser::GetImageMemInfo(std::vector<std::pair<int, size_t>> &infos)
 {
     infos = std::vector<std::pair<int, size_t>>(imageMemoryInfos.begin(), imageMemoryInfos.end());
+}
+
+void Parser::GetOutputManifest(std::string &outManifest)
+{
+    outManifest = outJson;
 }
 
 // int main()

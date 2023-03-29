@@ -364,10 +364,65 @@ Napi::Value Node_ReleaseSDK(const Napi::CallbackInfo &info)
         return env.Null();
     }
 
+    if (!info[0].IsString())
+    {
+        Napi::TypeError::New(env, "Wrong arguments, position 0 excepted a string").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
     auto objUUID = info[0].As<Napi::String>().Utf8Value();
     sdkObjMapping.erase(objUUID);
 
     return env.Null();
+}
+
+Napi::Value Node_GetOutManifest(const Napi::CallbackInfo &info)
+{
+    auto env = info.Env();
+
+    if (info.Length() < 1)
+    {
+        Napi::TypeError::New(env, "Wrong argument, excepted one string").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    if (!info[0].IsString())
+    {
+        Napi::TypeError::New(env, "Wrong arguments, position 0 excepted a string").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    auto objUUID = info[0].As<Napi::String>().Utf8Value();
+    auto sdk = sdkObjMapping[objUUID];
+
+    std::string outManifestJson;
+
+    sdk->GLBParser->GetOutputManifest(outManifestJson);
+
+    if (outManifestJson.empty() || !outManifestJson.length())
+    {
+        Napi::Error::New(env, "Output manifest is empty!").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    auto jsonModule = env.Global().Get("JSON");
+
+    if (!jsonModule.IsObject())
+    {
+        Napi::Error::New(env, "Cannot get JSON module").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    auto jsonParseFunction = jsonModule.As<Napi::Object>().Get("parse");
+
+    if (!jsonParseFunction.IsFunction())
+    {
+        Napi::Error::New(env, "Cannot get JSON.parse function").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    auto manifestObj = jsonParseFunction.As<Napi::Function>().Call(env.Global(), {Napi::String::New(env, outManifestJson)});
+    return manifestObj;
 }
 
 Napi::Value Node_WriteGLBFile(const Napi::CallbackInfo &info)
@@ -433,6 +488,9 @@ Napi::Object Initialize(Napi::Env env, Napi::Object exports)
     exports.Set(
         Napi::String::New(env, "GetImageMemoryInfo"),
         Napi::Function::New(env, Node_GetImageMemoryInfo));
+    exports.Set(
+        Napi::String::New(env, "GetOutManifest"),
+        Napi::Function::New(env, Node_GetOutManifest));
     exports.Set(
         Napi::String::New(env, "ReleaseSDK"),
         Napi::Function::New(env, Node_ReleaseSDK));

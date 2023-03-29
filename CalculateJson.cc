@@ -3,34 +3,51 @@
 #include <iostream>
 #include <algorithm>
 
-void CalculateJson(const std::string &inJson, const int totalBufferLength, const std::vector<std::pair<int, int>> &bufferViewInfo, const std::map<int, int> &imageMapping, const std::vector<std::string> &mimeTypes, std::string &outJson)
+void CalculateJson(const std::string &inJson, const int totalBufferLength, const std::map<int, BufferIndexInfo> &bufferIndexMapping, const std::map<int, int> &imageMapping, std::string &outJson)
 {
 
     auto jsonObj = nlohmann::json::parse(inJson);
 
-    auto &bufferViews = jsonObj["bufferViews"];
-    auto &images = jsonObj["images"];
+    const auto originalBufferViews = std::move(jsonObj["bufferViews"]);
+    jsonObj["bufferViews"].clear();
 
-    for (int i = 0; i < bufferViews.size(); i++)
+    auto &images = jsonObj["images"];
+    nlohmann::json bufferViews;
+    auto indexMappingIter = bufferIndexMapping.begin();
+    for (; indexMappingIter != bufferIndexMapping.end(); ++indexMappingIter)
     {
-        bufferViews[i]["byteOffset"] = bufferViewInfo[i].first;
-        bufferViews[i]["byteLength"] = bufferViewInfo[i].second;
+        if ((indexMappingIter->second).size != 0)
+        {
+            const auto &mappingTarget = originalBufferViews[indexMappingIter->first];
+            nlohmann::json bufferView;
+            bufferView["buffer"] = 0;
+            bufferView["byteOffset"] = (indexMappingIter->second).offset;
+            bufferView["byteLength"] = (indexMappingIter->second).size;
+            if (mappingTarget.contains("target"))
+            {
+                bufferView["target"] = mappingTarget["target"];
+            }
+
+            bufferViews.emplace_back(std::move(bufferView));
+        }
+    }
+    jsonObj["bufferViews"] = std::move(bufferViews);
+    auto &accessors = jsonObj["accessors"];
+    for (auto &accessor : accessors)
+    {
+        const int originBufferViewIndex = accessor["bufferView"];
+        accessor["bufferView"] = bufferIndexMapping.at(originBufferViewIndex).index;
     }
 
-    for (int i = 0; i < images.size(); i++)
+    const auto originalImages = jsonObj["images"];
+
+    for (int i = 0; i < originalImages.size(); i++)
     {
-        auto &image = images[i];
-
-        auto it = imageMapping.find(i);
-
-        image["mimeType"] = std::move(mimeTypes[i]);
-
-        if (it != imageMapping.end())
-        {
-            image["name"] = images[it->second]["name"];
-            image["bufferView"] = images[it->second]["bufferView"];
-            image["mimeType"] = images[it->second]["mimeType"];
-        }
+        const auto &mappingImageTarget = originalImages[imageMapping.at(i)];
+        const int bufferViewIndex = bufferIndexMapping.at(mappingImageTarget["bufferView"]).index;
+        jsonObj["images"][i]["bufferView"] = bufferViewIndex;
+        jsonObj["images"][i]["mimeType"] = mappingImageTarget["mimeType"];
+        jsonObj["images"][i]["name"] = mappingImageTarget["name"];
     }
 
     jsonObj["buffers"][0]["byteLength"] = totalBufferLength;

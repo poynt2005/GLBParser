@@ -42,6 +42,7 @@ public:
     void GetDuplicatedInfo(std::vector<DuplicatedImageInfo> &infos);
     void GetDownscaledInfo(std::vector<DownscaleInfo> &infos);
     void GetImageMemInfo(std::vector<std::pair<int, size_t>> &infos);
+    void GetOutputManifest(std::string &);
 
 private:
     /** structures */
@@ -76,7 +77,8 @@ private:
 
     /** mapping*/
     std::map<int, int> imageMapping;
-    std::vector<std::pair<int, int>> bufferMapping;
+    // std::vector<std::pair<int, int>> bufferMapping;
+    std::map<int, BufferIndexInfo> bufferIndexMapping;
 
     /** buffer*/
     std::unique_ptr<uint8_t[]> outBuffer;

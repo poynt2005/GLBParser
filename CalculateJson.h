@@ -5,6 +5,8 @@
 #include <vector>
 #include <map>
 
+#include "GLBTypes.h"
+
 // using OutImageInfoJson = struct outImageInfoJson
 // {
 //     int size;
@@ -19,6 +21,6 @@
 //     int outBufferSize;
 // };
 
-void CalculateJson(const std::string &, const int, const std::vector<std::pair<int, int>> &, const std::map<int, int> &, const std::vector<std::string> &, std::string &);
+void CalculateJson(const std::string &, const int, const std::map<int, BufferIndexInfo> &, const std::map<int, int> &, std::string &);
 
 #endif

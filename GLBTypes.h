@@ -21,4 +21,11 @@ using DownscaleInfo = struct downscaleInfo
     size_t cvMatResizedSize;
 };
 
+using BufferIndexInfo = struct bufferIndexInfo
+{
+    int index;
+    size_t offset;
+    size_t size;
+};
+
 #endif

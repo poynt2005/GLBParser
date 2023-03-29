@@ -80,6 +80,13 @@ function GLBParser(sourceGLBPath) {
   this.isImageOriginalMemCalculated = false;
 
   /**
+   * isFileExported means that output GLB is exported
+   * @type {boolean}
+   * @private
+   */
+  this.isFileExported = false;
+
+  /**
    * isSDKRelease means that SDK instance is released and deleted
    * @type {boolean}
    * @private
@@ -230,6 +237,26 @@ GLBParser.prototype.WriteGLBFile = function (outGLB) {
 
   nativeBinding.CalculateJsonChunk(this.uuid);
   nativeBinding.WriteGLBFile(this.uuid, outGLB);
+
+  this.isFileExported = true;
+};
+
+/**
+ * Get the output manifest Object
+ * it cannot be called without calling WriteGLBFile before
+ * @memberof GLBParser
+ * @returns {object} - The output manifest object
+ */
+GLBParser.prototype.GetOutputManifest = function () {
+  if (!this.isFileExported) {
+    throw new Error("WriteGLBFile must be called before");
+  }
+
+  if (this.isSDKRelease) {
+    throw new Error("SDK has been released");
+  }
+
+  return nativeBinding.GetOutManifest(this.uuid);
 };
 
 /**

@@ -1,5 +1,5 @@
 var GLBParser = require("./GLBParser");
-var parser = new GLBParser("../test2.glb");
+var parser = new GLBParser("./test2.glb");
 
 var info = parser.CalculateDulpicatedImage();
 var dulpicatedInfo = GLBParser.CalculateSize(info);
@@ -24,7 +24,7 @@ console.log("*************");
 console.log("*************");
 
 //info = parser.CompressImage(0.5);
-info = parser.CompressImageByUpperBound(31 * 1024 * 1024);
+info = parser.CompressImageByUpperBound(11 * 1024 * 1024);
 var compressInfo = GLBParser.CalculateSize(info);
 console.log("Compress Info:");
 console.log(
@@ -49,4 +49,13 @@ console.log("*************");
 parser.ReConstructBuffer();
 parser.WriteGLBFile("./out.glb");
 
+var fs = require("fs");
+console.log("Output Manifest");
+fs.writeFileSync(
+  "manifest.json",
+  JSON.stringify(parser.GetOutputManifest(), null, 4)
+);
+
 parser.ReleaseSDK();
+
+console.log("Parser GLB Terminated");
